@@ -51,15 +51,24 @@ jobs:
           permalink: pretty
           EOF
 
+      - name: Resolve site base path
+        id: site
+        run: |
+          if [ -f CNAME ]; then
+            echo "base_path=" >> "$GITHUB_OUTPUT"
+          else
+            echo "base_path=${{ steps.pages.outputs.base_path }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build site-generator with Jekyll
-        run: bundle exec jekyll build --source site --destination _site --baseurl "${{ steps.pages.outputs.base_path }}"
+        run: bundle exec jekyll build --source site --destination _site --baseurl "${{ steps.site.outputs.base_path }}"
         env:
           PAGES_REPO_NWO: ${{ github.repository }}
           JEKYLL_ENV: production
 
       - name: Add Pages base path to internal links
         env:
-          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          BASE_PATH: ${{ steps.site.outputs.base_path }}
         run: |
           python3 - <<'PY'
           import os
