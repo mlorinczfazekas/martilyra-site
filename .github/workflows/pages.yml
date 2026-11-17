@@ -1,9 +1,10 @@
-name: Deploy to GitHub Pages
+name: Build site-generator and deploy to GitHub Pages
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -31,7 +32,7 @@ jobs:
         id: pages
         uses: actions/configure-pages@v6
 
-      - name: Prepare Jekyll source
+      - name: Prepare site-generator source
         run: |
           mkdir -p site
           rsync -a --exclude='/assets/' CONTENT/ site/
@@ -45,11 +46,12 @@ jobs:
           cp -R .github/site-generator/_layouts .github/site-generator/_includes .github/site-generator/_data site/
           mkdir -p site/assets
           cp -R .github/site-generator/assets/. site/assets/
+          if [ -f CNAME ]; then cp CNAME site/CNAME; fi
           cat > site/_config.yml <<'EOF'
           permalink: pretty
           EOF
 
-      - name: Build Jekyll site
+      - name: Build site-generator with Jekyll
         run: bundle exec jekyll build --source site --destination _site --baseurl "${{ steps.pages.outputs.base_path }}"
         env:
           PAGES_REPO_NWO: ${{ github.repository }}
@@ -71,9 +73,9 @@ jobs:
           if base_path:
               base_segment = re.escape(base_path.lstrip("/"))
               pattern = re.compile(
-                  r"""(?P<prefix>\b(?:href|src)=["'])/(?!/)(?!"""
+                  r"""(?P<prefix>\b(?:href|src)=[\"'])/(?!/)(?!"""
                   + base_segment
-                  + r"""(?:/|["']))"""
+                  + r"""(?:/|[\"']))"""
               )
           for html_file in Path("_site").rglob("*.html"):
               html = html_file.read_text(encoding="utf-8")
@@ -91,7 +93,7 @@ jobs:
           # Make external links open in new tab
           find _site -name "*.html" -type f -exec sed -i -E 's|<a href="(https?://[^"]+)"([^>]*)>|<a href="\1"\2 target="_blank" rel="noopener noreferrer">|g' {} +
 
-      - name: Upload artifact
+      - name: Upload generated site artifact
         uses: actions/upload-pages-artifact@v5
         with:
           path: './_site'
@@ -103,6 +105,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Deploy generated site to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
